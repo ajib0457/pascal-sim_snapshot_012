@@ -1,0 +1,28 @@
+#!/bin/bash
+
+#     job name:
+#PBS -N mcmc_DTFE_snapshot_012_spin_lss_3.5Mpc_2000_M4
+#     how many cpus?
+#PBS -l select=1:ncpus=4:mpiprocs=4
+
+#     How long to run the job? (hours:minutes:seconds)
+#PBS -l walltime=02:30:00
+
+#     Name of output file:
+#PBS -o mcmc_DTFE_spin_lss_info
+
+#PBS -P RDS-FSC-GAMNSCM2-RW
+#     Environmental varibles to make it work:
+
+#PBS -M ajib0457@uni.sydney.edu.au
+
+#PBS -m abe 
+
+module load python
+module load namd
+cd $PBS_O_WORKDIR
+ 
+#     Launching the job!
+
+mpirun -np 4 python MCMC_DTFE_spin_lss.py
+
