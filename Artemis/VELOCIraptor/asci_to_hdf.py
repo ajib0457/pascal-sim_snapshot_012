@@ -11,9 +11,10 @@ Epot(62) RVmax_sigV(63) RVmax_veldisp_xx(64) RVmax_veldisp_xy(65) RVmax_veldisp_
 RVmax_veldisp_zx(70) RVmax_veldisp_zy(71) RVmax_veldisp_zz(72) RVmax_lambda_B(73) RVmax_Lx(74) RVmax_Ly(75) RVmax_Lz(76) RVmax_q(77) RVmax_s(78) 
 RVmax_eig_xx(79) RVmax_eig_xy(80) RVmax_eig_xz(81) RVmax_eig_yx(82) RVmax_eig_yy(83) RVmax_eig_yz(84) RVmax_eig_zx(85) RVmax_eig_zy(86) RVmax_eig_zz(87) '
 '''
-
-snapshot=12
-data = pd.read_csv('/import/oth3/ajib0457/VELOCIraptor/files/input_files/catalogs/lcdm/lcdm_snapshot_0%s_examplecfg.properties'%snapshot, header = None)
+cosmology='lcdm'           #'lcdm'  'cde0'  'wdm2'
+snapshot=11                #'12  '11'
+data = pd.read_csv('/import/oth3/ajib0457/VELOCIraptor/files/input_files/catalogs/%s/%s_snapshot_0%s.properties'%(cosmology,cosmology,snapshot), header = None)
+print data
 no_halos=int(len(data)-3)
 data=data[0][3:no_halos+3]
 data=np.asarray(data)
@@ -25,7 +26,14 @@ for i in range(no_halos):
     
 halos=np.asarray(halos)
 #halos array: (Pos)XYZ(kpc/h), (Vel)VxVyVz(km/s), (Ang. Mom)JxJyJz((Msun/h)*(kpc/h)*km/s), (Vir. Mass)Mvir(10^10Msun/h) & (Vir. Rad)Rvir(kpc/h) 
-halos_fnl=np.vstack((halos[:,7],halos[:,8],halos[:,9],halos[:,13],halos[:,14],halos[:,15],halos[:,44],halos[:,45],halos[:,46],halos[:,6],halos[:,25]))
+#halos_fnl=np.vstack((halos[:,7],halos[:,8],halos[:,9],halos[:,13],halos[:,14],halos[:,15],halos[:,44],halos[:,45],halos[:,46],halos[:,6],halos[:,25]))
+
+#halos array: (Pos)XYZ(kpc/h), (Vel)VxVyVz(km/s), (Ang. Mom)JxJyJz((Msun/h)*(kpc/h)*km/s), (Vir. Mass)Mvir(10^10Msun/h), (Vir. Rad)Rvir(kpc/h) & npart (no. particles for each sructure)
+#halos_fnl=np.vstack((halos[:,7],halos[:,8],halos[:,9],halos[:,13],halos[:,14],halos[:,15],halos[:,44],halos[:,45],halos[:,46],halos[:,6],halos[:,25],halos[:,4]))
+
+#halos array: (Pos)XYZ(kpc/h), (Vel)VxVyVz(km/s), (Ang. Mom)JxJyJz((Msun/h)*(kpc/h)*km/s), (tot. Mass)Mtot(10^10Msun/h),(Vir. Rad)Rvir(kpc/h) & npart (no. particles for each sructure)
+halos_fnl=np.vstack((halos[:,7],halos[:,8],halos[:,9],halos[:,13],halos[:,14],halos[:,15],halos[:,44],halos[:,45],halos[:,46],halos[:,19],halos[:,25],halos[:,4]))
+
 halos_fnl=np.float64(halos_fnl)
 halos_fnl=halos_fnl.transpose()
 
@@ -47,6 +55,15 @@ for i in range(len(halos_fnl)):
     if (halos_fnl[i,2]>500000 or halos_fnl[i,2]<0):
         halos_fnl[i,2]=abs(abs(halos_fnl[i,2])-500000)
 
-f=h5py.File("/import/oth3/ajib0457/VELOCIraptor/files/output_files/catalogs/lcdm/pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_m_r.h5" , 'w')
+#Mass is currently (Vir. Mass)Mvir(10^10Msun/h), change to Msun/h
+halos_fnl[:,9]=halos_fnl[:,9]*10**10
+
+#Position is currently kpc/h, change to Mpc/h
+halos_fnl[:,0]=halos_fnl[:,0]/1000.0
+halos_fnl[:,1]=halos_fnl[:,1]/1000.0
+halos_fnl[:,2]=halos_fnl[:,2]/1000.0
+print 'check if this:',len(halos_fnl), 'matches no. of halos within header'
+
+f=h5py.File("/import/oth3/ajib0457/VELOCIraptor/files/output_files/catalogs/%s/%s_snapshot_0%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart.h5"%(cosmology,cosmology,snapshot) , 'w')
 f.create_dataset('/halo',data=halos_fnl)
 f.close()
