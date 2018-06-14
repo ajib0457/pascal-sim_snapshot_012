@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#     job name:
+#PBS -N dm_only_lcdm_prehess_pascal_1250_myden_simsz500Mpc_smth_2Mpc/h_hess6
+#     how many cpus?
+#PBS -l select=1:ncpus=1:mem=256GB
+
+#     How long to run the job? (hours:minutes:seconds)
+#PBS -l walltime=00:40:00
+
+#     Name of output file:
+#PBS -o info_pre_hess
+
+#PBS -P RDS-FSC-GAMNSCM2-RW
+#     Environmental varibles to make it work:
+
+#PBS -M ajib0457@uni.sydney.edu.au
+
+#PBS -m abe 
+module load openmpi-gcc
+module load python
+module load hdf5
+cd $PBS_O_WORKDIR
+ 
+#     Launching the job!
+# smoothing scale | grid nodes
+python hess_comp6.py 2 1250
+
+
+
