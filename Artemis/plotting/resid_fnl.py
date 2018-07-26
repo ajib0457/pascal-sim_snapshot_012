@@ -7,8 +7,9 @@ import collections
 import sys
 sys.path.insert(0, '/project/GAMNSCM2/funcs')
 from signal_funcs import * 
+plt.rcParams['axes.grid'] = True
 
-snapshot='08'                             #'12  '11' 
+snapshot='09'                             #'12  '11' 
 method='grid'                             #'grid', 'mcmc', 'bootstrap'
 sim_sz=500                                #Size of simulation in physical units Mpc/h cubed
 grid_nodes=1250                           #Density Field grid resolution
@@ -39,8 +40,10 @@ for cos in cosmology:
         overlap=bin_overlap[i]
         if dp_mthd=='subdiv': 
             filehandler = open('/scratch/GAMNSCM2/%s/%s/snapshot_0%s/correl/%s/files/mod_fit/grid_mthd/myden_gridresults_LSS%s_spin_sim%sMpc_grid%s_smth%sMpc_%sbins_partclfilt%s_dpmthd_%s.pkl'%(sim_type,cos,snapshot,den_type,lss_type,sim_sz,grid_nodes,smth_scl,no_mass_bins,particles_filt,dp_mthd),"rb")
+            bin_plt=0
         if dp_mthd=='increm': 
             filehandler = open('/scratch/GAMNSCM2/%s/%s/snapshot_0%s/correl/%s/files/mod_fit/grid_mthd/myden_gridresults_LSS%s_spin_sim%sMpc_grid%s_smth%sMpc_%sbins_partclfilt%s_dpmthd_%s_overlap%sperc.pkl'%(sim_type,cos,snapshot,den_type,lss_type,sim_sz,grid_nodes,smth_scl,no_mass_bins,particles_filt,dp_mthd,overlap),"rb")
+            bin_plt=5
         if dp_mthd=='hiho': 
             filehandler = open('/scratch/GAMNSCM2/%s/%s/snapshot_0%s/correl/%s/files/mod_fit/grid_mthd/myden_gridresults_LSS%s_spin_sim%sMpc_grid%s_smth%sMpc_%sbins_partclfilt%s_dpmthd_%s.pkl'%(sim_type,cos,snapshot,den_type,lss_type,sim_sz,grid_nodes,smth_scl,no_mass_bins,particles_filt,dp_mthd),"rb")
         
@@ -64,7 +67,7 @@ min_maxs=np.zeros((len(smooth_scales),2))#[min,max]
 color=['green','blue','red','yellow']
 line_color=['g-','b-','r-','y-']
 plt.figure(figsize=(5*len(smooth_scales),15))
-plt.suptitle('%s-Method Mode Fitted snapshot_0%s dpmethod_%s overlap_%sperc'%(method,snapshot,dp_mthd,bin_overlap))
+plt.suptitle('Fiducial %s %s-Method snapshot_0%s dpmethod_%s overlap_%sperc'%(fiducial_cos,method,snapshot,dp_mthd,bin_overlap))
 i=0
 for smth_scl in smooth_scales: 
     bin_cent=[]
@@ -75,14 +78,14 @@ for smth_scl in smooth_scales:
     if i==0: ax1=plt.ylabel('c')
     plt.title('%sMpc/h(%s bins)'%(smth_scl,mass_bins[i]))    
     plt.ylim(-0.2,1)
-    if i>0: plt.yticks([])
-    plt.xticks([])
+    if i>0: plt.tick_params(axis='y', labelsize=0)
+    plt.tick_params(axis='x', labelsize=0)
     for cos in cosmology:     
-        if dp_mthd=='increm':
-            ax1=plt.plot(d[cos][smth_scl][:,5],d[cos][smth_scl][:,2],line_color[j],label=cos)# [Mass_min, Mass_max, Value, Error+,Error-,bin_centre]
-            ax1=plt.fill_between(d[cos][smth_scl][:,5], d[cos][smth_scl][:,2]-abs(d[cos][smth_scl][:,4]), d[cos][smth_scl][:,2]+abs(d[cos][smth_scl][:,3]),facecolor=color[j],alpha=0.3)                                                                                                                                                                                                                                      
-            j+=1 
-            bin_cent.append(d[cos][smth_scl][:,5])            
+ 
+        ax1=plt.plot(d[cos][smth_scl][:,bin_plt],d[cos][smth_scl][:,2],line_color[j],label=cos)# [Mass_min, Mass_max, Value, Error+,Error-,bin_centre]
+        ax1=plt.fill_between(d[cos][smth_scl][:,bin_plt], d[cos][smth_scl][:,2]-abs(d[cos][smth_scl][:,4]), d[cos][smth_scl][:,2]+abs(d[cos][smth_scl][:,3]),facecolor=color[j],alpha=0.3) 
+        j+=1 
+        bin_cent.append(d[cos][smth_scl][:,5])            
     min_maxs[i,0]=np.min(bin_cent)
     min_maxs[i,1]=np.max(bin_cent)    
     plt.xlim(min_maxs[i,0]-plt_buffr,min_maxs[i,1]+plt_buffr) 
@@ -97,30 +100,29 @@ for smth_scl in smooth_scales:
         
 #Calculate signal residuals
 signal_resids=collections.defaultdict(dict)
-if dp_mthd=='increm':    
-    cosmology.remove(fiducial_cos) 
-    for cos in cosmology: 
-        for smth_scl in smooth_scales:
-            
-            res,err_pos,err_neg=calc_resid(d[fiducial_cos][smth_scl][:,5],d[fiducial_cos][smth_scl][:,2],d[fiducial_cos][smth_scl][:,3],d[fiducial_cos][smth_scl][:,4],d[cos][smth_scl][:,5],d[cos][smth_scl][:,2],d[cos][smth_scl][:,3],d[cos][smth_scl][:,4])             
-            signal_resids[cos][smth_scl]= np.column_stack((res,err_pos,err_neg))# [res(2 cols),err_pos(1 cols),err_neg(1 cols)]                       
+    
+cosmology.remove(fiducial_cos) 
+for cos in cosmology: 
+    for smth_scl in smooth_scales:
+        
+        res,err_pos,err_neg=calc_resid(d[fiducial_cos][smth_scl][:,bin_plt],d[fiducial_cos][smth_scl][:,2],d[fiducial_cos][smth_scl][:,3],d[fiducial_cos][smth_scl][:,4],d[cos][smth_scl][:,bin_plt],d[cos][smth_scl][:,2],d[cos][smth_scl][:,3],d[cos][smth_scl][:,4])             
+        signal_resids[cos][smth_scl]= np.column_stack((res,err_pos,err_neg))# [res(2 cols),err_pos(1 cols),err_neg(1 cols)]                       
 
 #plot signal residuals
 i=0
 for smth_scl in smooth_scales: 
     j=0
     ax1=plt.subplot2grid((4,len(smooth_scales)), (1,i))
-    ax1=plt.axhline(y=0, xmin=0, xmax=15, color = 'black',linestyle='--')
+#    ax1=plt.axhline(y=0, xmin=0, xmax=15, color = 'black',linestyle='--')
     if i==0: ax1=plt.ylabel('|c residuals|')    
-    plt.ylim(-0.2,1)
     plt.xlim(min_maxs[i,0]-plt_buffr,min_maxs[i,1]+plt_buffr)   
-    if i>0: plt.yticks([])
-    plt.xticks([])    
+    if i>0: plt.tick_params(axis='y', labelsize=0)
+    plt.tick_params(axis='x', labelsize=0)   
     for cos in cosmology:     
-        if dp_mthd=='increm':
-            ax1=plt.plot(signal_resids[cos][smth_scl][:,0],signal_resids[cos][smth_scl][:,1],line_color[j+1],label=cos)
-            ax1=plt.fill_between(signal_resids[cos][smth_scl][:,0], signal_resids[cos][smth_scl][:,3], signal_resids[cos][smth_scl][:,2],facecolor=color[j+1],alpha=0.3)                                                                                                                                                                                                               
-            j+=1    
+
+        ax1=plt.plot(signal_resids[cos][smth_scl][:,0],signal_resids[cos][smth_scl][:,1],line_color[j+1],label=cos)
+        ax1=plt.fill_between(signal_resids[cos][smth_scl][:,0], signal_resids[cos][smth_scl][:,3], signal_resids[cos][smth_scl][:,2],facecolor=color[j+1],alpha=0.3)                                                                                                                                                                                                              
+        j+=1    
     if i==0: plt.legend(loc=1)
     i+=1 
 
@@ -148,12 +150,12 @@ for smth_scl in smooth_scales:
     if i==0: ax1=plt.ylabel('no. halos')    
     
     plt.xlim(min_maxs[i,0]-plt_buffr,min_maxs[i,1]+plt_buffr)   
-    if i>0: plt.yticks([])
-    plt.xticks([])    
+    if i>0: plt.tick_params(axis='y', labelsize=0)
+    plt.tick_params(axis='x', labelsize=0)   
     for cos in cosmology:     
-        if dp_mthd=='increm':
-            ax1=plt.plot(d[cos][smth_scl][:,5],no_halos[cos][smth_scl],line_color[j],label=cos)
-            j+=1    
+
+        ax1=plt.plot(d[cos][smth_scl][:,bin_plt],no_halos[cos][smth_scl],line_color[j],label=cos)
+        j+=1    
     if i==0: plt.legend(loc=1)
     i+=1 
 
@@ -163,8 +165,8 @@ halo_no_resids=collections.defaultdict(dict)
 for cos in cosmology: 
 
     for smth_scl in smooth_scales:
-        a_b_res,a_b_x=subtract_grad(d[fiducial_cos][smth_scl][:,5],no_halos[fiducial_cos][smth_scl],d[cos][smth_scl][:,5],no_halos[cos][smth_scl],sig_type='signal')
-        b_a_res,b_a_x=subtract_grad(d[cos][smth_scl][:,5],no_halos[cos][smth_scl],d[fiducial_cos][smth_scl][:,5],no_halos[fiducial_cos][smth_scl],sig_type='signal')
+        a_b_res,a_b_x=subtract_grad(d[fiducial_cos][smth_scl][:,bin_plt],no_halos[fiducial_cos][smth_scl],d[cos][smth_scl][:,bin_plt],no_halos[cos][smth_scl],sig_type='signal')
+        b_a_res,b_a_x=subtract_grad(d[cos][smth_scl][:,bin_plt],no_halos[cos][smth_scl],d[fiducial_cos][smth_scl][:,bin_plt],no_halos[fiducial_cos][smth_scl],sig_type='signal')
         res_tot_y=np.hstack((a_b_res,b_a_res))
         res_tot_x=np.hstack((a_b_x,b_a_x))
         res_nohalos=np.column_stack((res_tot_x,res_tot_y))#x,y columns
@@ -179,11 +181,11 @@ for smth_scl in smooth_scales:
     if i==0: ax1=plt.ylabel('|no. halos residuals|')    
     if i==1: ax1=plt.xlabel('$log_{10}(M_\odot)$')
     plt.xlim(min_maxs[i,0]-plt_buffr,min_maxs[i,1]+plt_buffr)   
-    if i>0: plt.yticks([])    
+    if i>0: plt.tick_params(axis='y', labelsize=0)   
     for cos in cosmology:     
-        if dp_mthd=='increm':
-            ax1=plt.plot(halo_no_resids[cos][smth_scl][:,0],halo_no_resids[cos][smth_scl][:,1],line_color[j+1],label=cos)
-            j+=1    
+        
+        ax1=plt.plot(halo_no_resids[cos][smth_scl][:,0],halo_no_resids[cos][smth_scl][:,1],line_color[j+1],label=cos)
+        j+=1    
     if i==0: plt.legend(loc=1)
     i+=1 
 plt.subplots_adjust(wspace=0)
