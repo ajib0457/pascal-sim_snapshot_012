@@ -10,22 +10,25 @@ sys.path.insert(0, '/project/GAMNSCM2/funcs')
 from plotter_funcs import *
 from error_func import *
 import pickle
-sim_type='dm_only'   #'dm_only' 'DTFE'
-cosmology='lcdm'     #DMONLY:'lcdm'  'cde0'  'wdm2'DMGAS: 'lcdm' 'cde000' 'cde050' 'cde099'
-snapshot='09'          #'12  '11'...
+sim_type=sys.argv[1]   #'dm_only' 'DTFE'
+cosmology=sys.argv[2]          #DMONLY:'lcdm'  'cde0'  'wdm2'DMGAS: 'lcdm' 'cde000' 'cde050' 'cde099'
+snapshot=sys.argv[3]            #'12  '11'...
 den_type='DTFE'      #'DTFE' 'my_den'
-smooth_scl=2       #Smoothing scale in physical units Mpc/h. 2  3.5  5
 sim_sz=500           #Size of simulation in physical units Mpc/h cubed
 grid_nodes=1250      #Density Field grid resolution
-runs=1000
+runs=10000
 hist_bins=300
 tot_dist_bins=6
 sigma_area=0.3413    #sigma percentile area as decimal
-
+particles_filt=100
 f=h5py.File("/scratch/GAMNSCM2/%s/%s/snapshot_0%s/catalogs/%s_%s_snapshot_0%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart.h5"%(sim_type,cosmology,snapshot,sim_type,cosmology,snapshot), 'r')
 #f=h5py.File("%s_%s_snapshot_0%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart.h5"%(sim_type,cosmology,snapshot), 'r')
 data=f['/halo'][:]#halos array: (Pos)XYZ(Mpc/h), (Vel)VxVyVz(km/s), (Ang. Mom)JxJyJz((Msun/h)*(kpc/h)*km/s), (tot. Mass)Mtot(10^10Msun/h),(Vir. Rad)Rvir(kpc/h) & npart (no. particles for each sructure)
 f.close()
+#Filter out halos with N particles
+partcl_halo_flt=np.where(data[:,11]>=particles_filt)#filter for halos with <N particles
+data=data[partcl_halo_flt]#Filter out halos with <N particles
+
 a_len=len(data)
 #a_len=1000
 dist_sp=distance.pdist(data[:,0:3], 'euclidean')
@@ -46,6 +49,7 @@ dist_min=np.min(log_dist[0,:])
 dist_max=np.max(log_dist[0,:])
 dist_intvl=(dist_max-dist_min)/tot_dist_bins#log_mass value used to find mass interval
 results=np.zeros((tot_dist_bins,5))# [Mass_min, Mass_max, Value, Error+,Error-]
+diction_2={}
 for dist_bin in range(tot_dist_bins):
     
     low_int=dist_min+dist_intvl*dist_bin#Calculate mass interval
@@ -92,7 +96,7 @@ for dist_bin in range(tot_dist_bins):
     x=np.delete(x,len(x)-1,0)+dx/2
     y=a[0]
     perc_lo,results[dist_bin,4],perc_hi,results[dist_bin,3],results[dist_bin,2],area=error(x,y,dx,sigma_area)
-
+    diction_2[dist_bin]=mean_set
 filehandler = open('dptest.pkl',"wb")       
 pickle.dump(results,filehandler)
 filehandler.close()
@@ -110,3 +114,10 @@ ax2.plot(results[:,0],results[:,2],'g-',label='spin_spin')
 ax2.fill_between(results[:,0], results[:,2]-abs(results[:,4]), results[:,2]+abs(results[:,3]),facecolor='green',alpha=0.3)
 
 plt.savefig('testplot_%s_%s.png'%(cosmology,snapshot))
+particles_filt='na'
+lss_type=[3,2,1,0]           #Cluster-3 Filament-2 Sheet-1 Void-0
+method='bootstrap'   #Not optional for this code
+dp_mthd='subdiv'             # 'increm', 'hiho' & 'subdiv'
+smooth_scl='na'       #Smoothing scale in physical units Mpc/h. 2  3.5  5
+
+posterior_plt(cosmology,diction_2,results,hist_bins,sim_sz,grid_nodes,smooth_scl,tot_dist_bins,particles_filt,lss_type,method,sim_type,snapshot,den_type,dp_mthd)
