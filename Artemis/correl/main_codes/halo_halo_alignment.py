@@ -13,14 +13,15 @@ import pickle
 sim_type=sys.argv[1]   #'dm_only' 'DTFE'
 cosmology=sys.argv[2]          #DMONLY:'lcdm'  'cde0'  'wdm2'DMGAS: 'lcdm' 'cde000' 'cde050' 'cde099'
 snapshot=sys.argv[3]            #'12  '11'...
-den_type='DTFE'      #'DTFE' 'my_den'
+particles_filt=int(sys.argv[4])
+den_type=sys.argv[5]      #'DTFE' 'my_den'
 sim_sz=500           #Size of simulation in physical units Mpc/h cubed
 grid_nodes=1250      #Density Field grid resolution
-runs=10000
+runs=20000
 hist_bins=300
-tot_dist_bins=6
+tot_dist_bins=9
 sigma_area=0.3413    #sigma percentile area as decimal
-particles_filt=100
+
 f=h5py.File("/scratch/GAMNSCM2/%s/%s/snapshot_0%s/catalogs/%s_%s_snapshot_0%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart.h5"%(sim_type,cosmology,snapshot,sim_type,cosmology,snapshot), 'r')
 #f=h5py.File("%s_%s_snapshot_0%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart.h5"%(sim_type,cosmology,snapshot), 'r')
 data=f['/halo'][:]#halos array: (Pos)XYZ(Mpc/h), (Vel)VxVyVz(km/s), (Ang. Mom)JxJyJz((Msun/h)*(kpc/h)*km/s), (tot. Mass)Mtot(10^10Msun/h),(Vir. Rad)Rvir(kpc/h) & npart (no. particles for each sructure)
@@ -35,9 +36,8 @@ dist_sp=distance.pdist(data[:,0:3], 'euclidean')
 #dist_sp=distance.pdist(data[0:a_len,0:3], 'euclidean')
 
 #range of halo-halo alignment signal
-dist_min=np.min(dist_sp)
-dist_max=np.exp(-0.25)#Specific as Trowland+12 is.
-
+dist_min=10**(-1.2)
+dist_max=10**0.8#Specific as Trowland+12 is.
 #Filter out entire range to save memory
 bn=np.logical_and(dist_sp>=dist_min,dist_sp<dist_max)
 a=np.where(bn==True)
@@ -97,7 +97,7 @@ for dist_bin in range(tot_dist_bins):
     y=a[0]
     perc_lo,results[dist_bin,4],perc_hi,results[dist_bin,3],results[dist_bin,2],area=error(x,y,dx,sigma_area)
     diction_2[dist_bin]=mean_set
-filehandler = open('dptest.pkl',"wb")       
+filehandler = open('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/results_%s_%s_%s_%s.pkl'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt),"wb")       
 pickle.dump(results,filehandler)
 filehandler.close()
 
@@ -105,16 +105,16 @@ plt.figure()
     
 ax2=plt.subplot2grid((1,1), (0,0))
 ax2.axhline(y=0.5, xmin=0, xmax=15, color = 'k',linestyle='--')
-plt.ylabel('Mean cos(theta)')
+plt.ylabel('<J(x).J(x+r)>')
 plt.xlabel('log r[Mpc/h]')   
-plt.title('halo-halo_%s'%cosmology)
+plt.title('%s_%s_%s_%s'%(sim_type,cosmology,snapshot,particles_filt))
 plt.legend(loc='upper right')
 
 ax2.plot(results[:,0],results[:,2],'g-',label='spin_spin')
 ax2.fill_between(results[:,0], results[:,2]-abs(results[:,4]), results[:,2]+abs(results[:,3]),facecolor='green',alpha=0.3)
 
-plt.savefig('testplot_%s_%s.png'%(cosmology,snapshot))
-particles_filt='na'
+plt.savefig('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/halohalodp%s_%s_%s_%s.png'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt))
+
 lss_type=[3,2,1,0]           #Cluster-3 Filament-2 Sheet-1 Void-0
 method='bootstrap'   #Not optional for this code
 dp_mthd='subdiv'             # 'increm', 'hiho' & 'subdiv'
