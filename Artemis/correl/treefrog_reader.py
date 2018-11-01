@@ -51,7 +51,10 @@ for j in range(int(cat_lengths[0])):#
     fnd_hlo=np.where(cat_11[:,12]==a[a_in,0])#Find the npart of the halo to be traced
     parent_halo_npart=cat_11[fnd_hlo,11]
     parent=np.vstack((a[a_in,0],parent_halo_npart)).flatten()
-
+    
+    if (int(a[a_in+1,1])-a[a_in+1,1])==0:#If this is an integer, skip iteration.
+        continue
+        
     fnd_hlo=np.where(cat_p[:,12]==a[a_in+1,0])#find its first progenitor.
     progenitor_npart=cat_p[fnd_hlo,11]
     progenitor=np.vstack((a[a_in+1,0],progenitor_npart)).flatten()
@@ -72,6 +75,8 @@ for j in range(int(cat_lengths[0])):#
         if len(b_in)>1:
             b_indx=np.where(a_cutout[b_in,1]>=1)
             b_in=b_in[b_indx]
+            if b_in.size==0:
+                break
         if (int(a_cutout[b_in+1,1])-a_cutout[b_in+1,1])==0:#If this is an integer, halt program.
             break
         f=h5py.File("/scratch/GAMNSCM2/%s/%s/snapshot_0%s/catalogs/%s_%s_snapshot_0%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart_id_idmbp_hosthaloid_numsubstruct.h5"%(sim_type,cosmology,snap[i+1],sim_type,cosmology,snap[i+1]), 'r')
