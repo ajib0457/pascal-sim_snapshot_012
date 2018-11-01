@@ -42,7 +42,7 @@ for i in range(len(data)):
     val=np.fromstring(data[i],  sep="\t")
     a[i,0:len(val)]=val
     
-diction={}#For storing all evoltn_tree
+diction={}#For storing all evoltn_tree. #[id,npart](011), [id,npart](010)...
 a_in=1#initialise jumping over subheader for each snapshot
 for j in range(int(cat_lengths[0])):#
     if j>0:#This statement jumps a through each parent halo in snap 11
@@ -61,6 +61,8 @@ for j in range(int(cat_lengths[0])):#
     
     i=1
     while progenitor_npart>0.5*parent_halo_npart:#while progentior greater than half parent
+        if i==int(len(cat_lengths)-1):
+            break
         a_min=int(np.array(np.where(a[:,1]==cat_lengths[i])))
         a_max=int(np.array(np.where(a[:,1]==cat_lengths[i+1])))
         a_cutout=a[a_min+1:a_max]                
@@ -70,12 +72,14 @@ for j in range(int(cat_lengths[0])):#
         if len(b_in)>1:
             b_indx=np.where(a_cutout[b_in,1]>=1)
             b_in=b_in[b_indx]
-            
+        if (int(a_cutout[b_in+1,1])-a_cutout[b_in+1,1])==0:#If this is an integer, halt program.
+            break
         f=h5py.File("/scratch/GAMNSCM2/%s/%s/snapshot_0%s/catalogs/%s_%s_snapshot_0%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart_id_idmbp_hosthaloid_numsubstruct.h5"%(sim_type,cosmology,snap[i+1],sim_type,cosmology,snap[i+1]), 'r')
         cat_px=f['/halo'][:]
         f.close()
         
         fnd_hlo=np.where(cat_px[:,12]==a_cutout[b_in+1,0])#find its first progenitor.
+        #I'm thinkign it is best to place break if the fnd_hlo is empty?
         progenitor_npart=cat_px[fnd_hlo,11]
         progenitor=np.vstack((a_cutout[b_in+1,0],progenitor_npart)).flatten()
         evoltn_tree.append(progenitor)
