@@ -41,7 +41,7 @@ for i in range(len(data)):
     
     val=np.fromstring(data[i],  sep="\t")
     a[i,0:len(val)]=val
-    
+count=0
 diction={}#For storing all evoltn_tree. #[id,npart](011), [id,npart](010)...
 a_in=1#initialise jumping over subheader for each snapshot
 for j in range(int(cat_lengths[0])):#
@@ -75,7 +75,9 @@ for j in range(int(cat_lengths[0])):#
         if len(b_in)>1:
             b_indx=np.where(a_cutout[b_in,1]>=1)
             b_in=b_in[b_indx]
-            if b_in.size==0:
+            if b_in.size==0 or b_in.size>1:
+                if b_in.size>1:
+                    count+=1
                 break
         if (int(a_cutout[b_in+1,1])-a_cutout[b_in+1,1])==0:#If this is an integer, halt program.
             break
@@ -91,6 +93,6 @@ for j in range(int(cat_lengths[0])):#
         i+=1
     diction[j]=evoltn_tree
 
-filehandler = open('/scratch/GAMNSCM2/ft/%s/%s/ft_dict_%s_%s.pkl'%(sim_type,cosmology,sim_type,cosmology),"wb")
+filehandler = open('/scratch/GAMNSCM2/ft/%s/%s/ft_dict_%s_%s_count%s.pkl'%(sim_type,cosmology,sim_type,cosmology,count),"wb")
 pickle.dump(diction,filehandler)
 filehandler.close() 
