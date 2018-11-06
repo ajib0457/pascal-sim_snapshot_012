@@ -19,7 +19,7 @@ runs=20000
 hist_bins=300
 tot_dist_bins=17
 sigma_area=0.3413    #sigma percentile area as decimal
-bin_overlap=30
+bin_overlap=60
 lss_type=[3,2,1,0]           #Cluster-3 Filament-2 Sheet-1 Void-0
 f=h5py.File("/scratch/GAMNSCM2/halo_halo_lss/%s/%s/%s_%s_snap%s_smth%s_%s_pascal_VELOCIraptor_allhalos_xyz_vxyz_jxyz_mtot_r_npart_mask_exyz.h5"%(sim_type,cosmology,sim_type,cosmology,snapshot,smooth_scl,den_type), 'r')
 data=f['/halo_lss'][:]#halos array: (Pos)XYZ(Mpc/h), (Vel)VxVyVz(km/s), (Ang. Mom)JxJyJz((Msun/h)*(kpc/h)*km/s), (tot. Mass)Mtot(10^10Msun/h),(Vir. Rad)Rvir(kpc/h) & npart (no. particles for each sructure)
@@ -44,7 +44,7 @@ dist_sp=distance.pdist(data[:,0:3], 'euclidean')
 
 #range of halo-halo alignment signal
 dist_min=10**(-1.2)
-dist_max=10**0.2#Specific as Trowland+12 is.
+dist_max=10**(0.8)#Specific as Trowland+12 is.
 #Filter out entire range to save memory
 bn=np.logical_and(dist_sp>=dist_min,dist_sp<dist_max)
 a=np.where(bn==True)
@@ -125,11 +125,11 @@ for dist_bin in range(tot_dist_bins):
     results_dp[dist_bin,4],results_dp[dist_bin,3],results_dp[dist_bin,2],diction_dp[dist_bin]=bootstrap(store_dp,hist_bins,sigma_area)
     results_mr[dist_bin,4],results_mr[dist_bin,3],results_mr[dist_bin,2],diction_mr[dist_bin]=bootstrap(store_mratio,hist_bins,sigma_area)
 lss_type='_'.join(map(str, lss_type))
-filehandler = open('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/resultsdp_%s_%s_%s_%s_lsstype%s.pkl'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type),"wb")       
+filehandler = open('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/resultsdp_%s_%s_%s_%s_lsstype%s_increm%s_bns%s.pkl'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type,bin_overlap,tot_dist_bins),"wb")       
 pickle.dump(results_dp,filehandler)
 filehandler.close()
 
-filehandler = open('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/resultsmr_%s_%s_%s_%s_lsstype%s.pkl'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type),"wb")       
+filehandler = open('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/resultsmr_%s_%s_%s_%s_lsstype%s_increm%s_bns%s.pkl'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type,bin_overlap,tot_dist_bins),"wb")       
 pickle.dump(results_mr,filehandler)
 filehandler.close()
 
@@ -142,18 +142,18 @@ plt.title('%s_%s_%s_%s'%(sim_type,cosmology,snapshot,particles_filt))
 plt.legend(loc='upper right')
 ax2.plot(results_dp[:,0],results_dp[:,2],'g-',label='spin_spin')
 ax2.fill_between(results_dp[:,0], results_dp[:,2]-abs(results_dp[:,4]), results_dp[:,2]+abs(results_dp[:,3]),facecolor='green',alpha=0.3)
-plt.savefig('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/halohalodpincrem%s_%s_%s_%s_lsstype%s.png'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type))
+plt.savefig('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/halohalodpincrem%s_%s_%s_%s_lsstype%s_newest_test.png'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type))
 
-plt.figure()#plot mr vs dp
-ax2=plt.subplot2grid((1,1), (0,0))
-plt.ylabel('<J(x).J(x+r)>')
-plt.xlabel('$M_{1}/M_{2}$')
-plt.axhline(y=0.5, xmin=0, xmax=100, color = 'k',linestyle='--')
-plt.axvline(x=1.0, ymin=0, ymax=15, color = 'k',linestyle='--')
-plt.errorbar(results_mr[:,2],results_dp[:,2],[results_mr[:,4],results_mr[:,3]],[results_dp[:,4],results_dp[:,3]])
-plt.title('%s_%s_%s_%s'%(sim_type,cosmology,snapshot,particles_filt))
-#plt.legend(loc='upper right')
-plt.savefig('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/halohalodpmrincrem%s_%s_%s_%s_lsstype%smrmorethanone.png'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type))
+#plt.figure()#plot mr vs dp
+#ax2=plt.subplot2grid((1,1), (0,0))
+#plt.ylabel('<J(x).J(x+r)>')
+#plt.xlabel('$M_{1}/M_{2}$')
+#plt.axhline(y=0.5, xmin=0, xmax=100, color = 'k',linestyle='--')
+#plt.axvline(x=1.0, ymin=0, ymax=15, color = 'k',linestyle='--')
+#plt.errorbar(results_mr[:,2],results_dp[:,2],[results_mr[:,4],results_mr[:,3]],[results_dp[:,4],results_dp[:,3]])
+#plt.title('%s_%s_%s_%s'%(sim_type,cosmology,snapshot,particles_filt))
+##plt.legend(loc='upper right')
+#plt.savefig('/scratch/GAMNSCM2/halo_halo_plts/%s/%s/halohalodpmrincrem%s_%s_%s_%s_lsstype%smrmorethanone.png'%(sim_type,cosmology,sim_type,cosmology,snapshot,particles_filt,lss_type))
 
 
 method='bootstrap'   #Not optional for this code
@@ -163,5 +163,5 @@ smooth_scl='na'       #Smoothing scale in physical units Mpc/h. 2  3.5  5
 sys.path.insert(0, '/project/GAMNSCM2/main_codes/correl/halo_halo/funcs') 
 from plotter_funcs import *
 
-posterior_plt(cosmology,diction_dp,results_dp,hist_bins,sim_sz,grid_nodes,smooth_scl,tot_dist_bins,particles_filt,lss_type,method,sim_type,snapshot,den_type,dp_mthd,no_dist=no_dist,data_type='spindp_vs_dist')
-posterior_plt(cosmology,diction_mr,results_mr,hist_bins,sim_sz,grid_nodes,smooth_scl,tot_dist_bins,particles_filt,lss_type,method,sim_type,snapshot,den_type,dp_mthd,no_dist=no_dist,data_type='mr_vs_dist')
+posterior_plt(cosmology,diction_dp,results_dp,hist_bins,sim_sz,grid_nodes,smooth_scl,tot_dist_bins,particles_filt,lss_type,method,sim_type,snapshot,den_type,dp_mthd,no_dist=no_dist,data_type='spindp_vs_dist_newest_test')
+posterior_plt(cosmology,diction_mr,results_mr,hist_bins,sim_sz,grid_nodes,smooth_scl,tot_dist_bins,particles_filt,lss_type,method,sim_type,snapshot,den_type,dp_mthd,no_dist=no_dist,data_type='mr_vs_dist_newest_test')
