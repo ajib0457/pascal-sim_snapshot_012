@@ -11,10 +11,18 @@ import random
 This code generates a dictionary which includes all the sampling points (of filaments) connected to 
 the cp's which are closest to each halo in provided catalog. 
 '''
-def dist(halo_pos,smp_points,halo_id):
+def dist(halo_pos,smp_points,halo_id,sim_sz):
     '''
     This function will produce: distance=[halo_qty,halo_ids,seg_index1,min_dist1,seg_index2,min_dist2,...]
     '''
+    if int(np.shape(np.where(smp_points>sim_sz))[1])>0:
+        a=np.where(smp_points>sim_sz)
+        smp_points[a]=abs(abs(smp_points[a])-sim_sz)
+    
+    if int(np.shape(np.where(smp_points<0.0))[1])>0:
+        a=np.where(smp_points<0.0)
+        smp_points[a]=abs(abs(smp_points[a])-sim_sz)
+            
     len_haloes=np.shape(halo_pos)[0]
     len_smp=np.shape(smp_points)[0]
     distance=np.zeros((1+3*len_haloes))
@@ -25,44 +33,43 @@ def dist(halo_pos,smp_points,halo_id):
         for j in range (len_smp):
         
             all_dist[j]=mth.sqrt((halo_pos[i,0]-smp_points[j,0])**2+(halo_pos[i,1]-smp_points[j,1])**2 +(halo_pos[i,2]-smp_points[j,2])**2)
-
+    
         distance[1+2*i+len_haloes]=np.argmin(all_dist)        
         distance[1+2*i+len_haloes+1]=np.min(all_dist)
         
-    return distance
+    return distance,smp_points
 
 np.random.seed(1)
-no_haloes=200
+tot_no_haloes=200
 #create haloes
-haloes_pos=np.random.rand(no_haloes,3)*50000
-haloes_spin=np.random.rand(no_haloes,3)
+haloes_pos=np.random.rand(tot_no_haloes,3)*50000
+haloes_spin=np.random.rand(tot_no_haloes,3)
 spin_norm=skl.normalize(haloes_spin[:]) 
-halo_mass=np.random.rand(no_haloes)
-halo_id=np.asarray(random.sample(range(1, 1000), no_haloes))
+halo_mass=np.random.rand(tot_no_haloes)
+halo_id=np.asarray(random.sample(range(1, 1000), tot_no_haloes))
+catlog=np.column_stack((halo_id,spin_norm,halo_mass))
 #import skeleton
 data = pd.read_csv('/import/oth3/ajib0457/disperse/3d_vis_recreate/simu_32_id.gad.NDnet_s3.5.up.NDskl.a.NDskl', sep='delimiter',engine='python')#error_bad_lines=False
 data_arr=np.asarray(data)
 #indices of data
-sim_dim=data_arr[2]
+sim_dim=','.join(data_arr[2]).split()
+sim_sz=50000.0
 strt_indx=0
-#Find cp closest to haloes
+#Find cp of type 3 (maxima) closest to haloes
 cp_loc=np.where(data_arr=="[CRITICAL POINTS]")[0]#these seperate distinct datasets
 no_cp=','.join(data.values[int(cp_loc+1)]).split()#number of critical points 
 no_cp=int(np.asarray(map(int,list(no_cp))))
 strt_indx=cp_loc+2#first cp
 cp_store=np.zeros((no_cp,4))-1
-sddl_sv=np.zeros((no_cp,2))
 for i in range(no_cp):
     #check that it has connecting filaments
     fil_index=strt_indx+1
     no_fil=','.join(data.values[int(fil_index)]).split()
     no_fil=int(np.asarray(map(int,list(no_fil))))
     #store the cp type of each cp and the cp ID
-    cp_id=','.join(data.values[int(strt_indx)]).split()[5]
-    cp_type=','.join(data.values[int(strt_indx)]).split()[0]
-    sddl_sv[i]=np.array([cp_id,cp_type])
+    cp_type=','.join(data.values[int(strt_indx)]).split()[0]    
     
-    if no_fil>0:    
+    if int(cp_type)==3:    
     
         cp_pos=','.join(data.values[int(strt_indx)]).split()[1:4]
         cp_id=','.join(data.values[int(strt_indx)]).split()[5]
@@ -72,7 +79,7 @@ for i in range(no_cp):
         #get to next cp by reading filament data as to skip        
         strt_indx=strt_indx+int(no_fil)+2
 
-cp_store_fnl=cp_store[np.where(cp_store[:,3]>=0)]#filter out cps with no connecting filaments
+cp_store_fnl=cp_store[np.where(cp_store[:,3]>=0)]#filter out empty rows
 halo_cp_dist=distance.cdist(haloes_pos,cp_store_fnl[:,0:3],metric='euclidean')#2D distance matrix
 min_dist=np.min(halo_cp_dist,axis=1,keepdims=True)#Find the closest cp to each halo
 min_indx=np.where(halo_cp_dist==min_dist)[1]#I can use np.argmin() but for now stick with this
@@ -83,12 +90,9 @@ fil_loc=np.where(data_arr=="[FILAMENTS]")[0]#these seperate distinct datasets
 strt_indx_fil=fil_loc+1
 no_fil=','.join(data.values[int(strt_indx_fil)]).split()
 no_fil=int(np.asarray(map(int,list(no_fil))))
-smp_dict=collections.defaultdict(dict)
-dist_dict=collections.defaultdict(dict)
+smp_dict=collections.defaultdict(dict)#dictionary with filament id as keys and no subkeys
+dist_dict=collections.defaultdict(dict)#halo id as keys and filament id as subkeys
 
-count_1=0
-count_2=0
-count_3=0
 fil_extr=np.zeros((no_fil,2))
 for i in range(no_fil): 
     strt_indx_fil+=1
@@ -105,64 +109,84 @@ for i in range(no_fil):
         for j in range(no_smp):            
             strt_indx_fil+=1
             smp_pos[j,:]=','.join(data.values[int(strt_indx_fil)]).split()
-        smp_dict[i]=smp_pos#save all relevant filament sampling points
+        
         #find which halo spins corresp. w/ filament cp
         if cp_ex1>0: 
             
             halo_ex1_pos=haloes_pos[cp_ex1_indx]
             halo_ex1_id=halo_id[cp_ex1_indx]
             #save the min dist and smp_point index in dictionary
-            fil_halo_dist=dist(halo_ex1_pos,smp_pos,halo_ex1_id)
+            fil_halo_dist,smp_pos_fnl=dist(halo_ex1_pos,smp_pos,halo_ex1_id,sim_sz)
             no_haloes=int(fil_halo_dist[0])
-#            count_1+=no_haloes
+
             for k in range(no_haloes):            
-                dist_dict[int(fil_halo_dist[k+1])][i]=fil_halo_dist[(no_haloes+1+k):(no_haloes+1+k+2)]
+                dist_dict[int(fil_halo_dist[k+1])][i]=fil_halo_dist[(no_haloes+1+2*k):(no_haloes+1+2*k+2)]
 
         if cp_ex2>0:
             
             halo_ex2_pos=haloes_pos[cp_ex2_indx]
             halo_ex2_id=halo_id[cp_ex2_indx]
             #save the min dist and smp_point index in dictionary
-            fil_halo_dist=dist(halo_ex2_pos,smp_pos,halo_ex2_id)
+            fil_halo_dist,smp_pos_fnl=dist(halo_ex2_pos,smp_pos,halo_ex2_id,sim_sz)
             no_haloes=int(fil_halo_dist[0])
-#            count_2+=no_haloes
+
             for k in range(no_haloes):            
                 dist_dict[int(fil_halo_dist[k+1])][i]=fil_halo_dist[(no_haloes+1+k):(no_haloes+1+k+2)]
-            
-#        if cp_ex1>0 and cp_ex2>0:
-#            count_3+=1
+        smp_dict[i]=smp_pos_fnl#save all relevant filament sampling points after periodicity corrections
+         
     else:#if filament not related, go to next filament.
          strt_indx_fil+=no_smp                                          
- 
-#now I have the minimum distance for each filament, I can find the absolute minimum for each halo. I need a new loop because i need the thing to run to the end.
-#for i in range(len(dist_dict.keys())):
+count=0
+abs_dist=[]#[[halo_mass,dp],[]] adopt dp code and count how many for second scenario and lim dist
+#make an empty array with length of number of haloes. and width of 3 or so, and replace all elements
+#with -1. but then when I want to use it
+for key in halo_id:
+    distance=np.zeros((len(dist_dict[key]),4))#[halo_id,fil_id,seg_id,min_dist]
+    i=0
+    for subkey in dist_dict[key].keys():
+        distance[i,0]=key
+        distance[i,1]=subkey
+        distance[i,2:4]=dist_dict[key][subkey]
+        i+=1
+    min_dist=distance[np.argmin(distance[:,3]),:]#find the min distance of the options in the form: [fil_id,smp-point_id,min_dist]
+    halo=catlog[np.where(catlog[:,0]==min_dist[0])]
+    hmass=halo[0][4]
+    hspin=halo[0][1:4]
     
-print len(dist_dict.keys())    
- 
+    if min_dist[2]==0:#If closest smp point is at the beginning of filament
+        #This takes dp of two segments, one from each filament       
+        segs=dist_dict[min_dist[0]].keys()        
+        seg_1=smp_dict[segs[0]][0]
+        seg_2=smp_dict[segs[0]][1]
+        seg_3=smp_dict[segs[1]][1]
+        sepvecs=np.vstack((seg_1-seg_2,seg_1-seg_3))
+        sepvecs=skl.normalize(sepvecs)
+        dp_val=abs(np.inner(sepvecs,hspin))
+        abs_dist.append(np.column_stack(([hmass,hmass],dp_val)))
+#        abs_dist.append(np.array([[hmass],[hmass]]))
+                
+    elif min_dist[2]==len(smp_dict[min_dist[1]])-1:#if closest smp point is at the end of filament
+        #note: this only takes one segment. figure out second segment if count is high!
+         seg_1=smp_dict[int(min_dist[1])][int(min_dist[2])]
+         seg_2=smp_dict[int(min_dist[1])][int(min_dist[2]-1)]
+         sepvecs=np.array([seg_1-seg_2])
+         sepvecs=skl.normalize(sepvecs)
+         dp_val=abs(np.inner(sepvecs,hspin))
+         abs_dist.append(np.column_stack((hmass,dp_val)))
+#         abs_dist.append(np.array([hmass]))
+         
+    else:# if in the middle somehwere, simple.
+        #This scenario takes the dp of two adjacent segments
+        seg_1=smp_dict[int(min_dist[1])][int(min_dist[2])]
+        seg_2=smp_dict[int(min_dist[1])][int(min_dist[2]+1)]
+        seg_3=smp_dict[int(min_dist[1])][int(min_dist[2]-1)]        
+        sepvecs=np.vstack((seg_1-seg_2,seg_1-seg_3))        
+        sepvecs=skl.normalize(sepvecs)
+        dp_val=abs(np.inner(sepvecs,hspin))
+        abs_dist.append(np.column_stack(([hmass,hmass],dp_val)))
+#        abs_dist.append(np.array([[hmass],[hmass]]))
 
-'''
-dist_dict[996]
-Out[129]: 
-{312: array([9.00000000e+00, 5.40273354e+04]),
- 318: array([    0.        , 52161.74555037]),
- 324: array([8.00000000e+00, 5.40273354e+04]),
- 1021: array([    0.       , 52197.1647502])}
-There are two issues, the first is the above which shows that this halo is equidistant from two different filaments?
-the second issue is that I am getting only len(dist_dict.keys())=161 haloes when I should get 200.
-it seems the second issue is not an issue as I am finding that filaments can share sampling points... 
-
-figure out exactly what cp are at the extremes of filaments because just checked that cp type 2 do sit at filament
-extremes... weird how 719 as a cp type of 1 with no filaments apparently still has 2 filaments:
-    np.where(fil_extr==719)
-Out[245]: (array([374, 375]), array([0, 0]))
-
-1 49630 24764.7 1921.57 5.80169e-10 719 0
- 0
-This implies that there are no filaments connected to it, but then I do find there are 2 filaments connected.
-Check the processing that has gone into creating this catalog because perhaps the system has trimmed or something
-and does not indicate it in the catalog?????
-'''
-
+#just need to figure out how to convert this list/object into a 2d array. then feed into halo_lss_2 code
     
     
  
